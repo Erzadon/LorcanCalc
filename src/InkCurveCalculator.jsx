@@ -52,7 +52,7 @@ function InkCurveCalculator() {
   };
 
   const calculateCurve = () => {
-    const totalCards = cardCounts.reduce((sum, count) => sum + count, 0);
+    const totalCards = getTotalCardCount();
     if (totalCards === 0) {
       setResult({ error: 'Please enter at least one card count.' });
       return;
@@ -67,13 +67,14 @@ function InkCurveCalculator() {
     if (manualNonInkables !== '') {
       nonInkables = parseInt(manualNonInkables, 10);
     } else {
-      let maxSuccess = 0;
       for (let possibleNonInkables = 0; possibleNonInkables <= totalCards; possibleNonInkables++) {
-        const possibleInkables = totalCards - possibleNonInkables;
-        const successRate = (1 - binomialCDF(targetTurn - 1, cardsSeen, possibleInkables / totalCards)) * 100;
-        if (successRate >= probabilityTarget) {
+        const inkables = totalCards - possibleNonInkables;
+        let probSuccess = 0;
+        for (let k = targetTurn; k <= cardsSeen; k++) {
+          probSuccess += binomialPMF(k, cardsSeen, inkables / totalCards);
+        }
+        if (probSuccess * 100 >= probabilityTarget) {
           nonInkables = possibleNonInkables;
-          maxSuccess = successRate;
         } else {
           break;
         }
@@ -86,13 +87,20 @@ function InkCurveCalculator() {
     }
 
     const inkablesInDeck = totalCards - nonInkables;
-    const successRate = (1 - binomialCDF(targetTurn - 1, cardsSeen, inkablesInDeck / totalCards)) * 100;
+    let successProb = 0;
+    for (let k = targetTurn; k <= cardsSeen; k++) {
+      successProb += binomialPMF(k, cardsSeen, inkablesInDeck / totalCards);
+    }
+    const successRate = successProb * 100;
 
     const newChartData = Array.from({ length: 10 }, (_, turn) => {
       const seen = 7 + turn;
       const requiredInk = turn + 1;
-      const odds = (1 - binomialCDF(requiredInk - 1, seen, inkablesInDeck / totalCards)) * 100;
-      return { turn: turn + 1, 'Odds of Playing on Curve': parseFloat(odds.toFixed(1)) };
+      let turnProb = 0;
+      for (let k = requiredInk; k <= seen; k++) {
+        turnProb += binomialPMF(k, seen, inkablesInDeck / totalCards);
+      }
+      return { turn: turn + 1, 'Odds of Playing on Curve': parseFloat((turnProb * 100).toFixed(1)) };
     });
 
     setResult({
@@ -106,14 +114,6 @@ function InkCurveCalculator() {
     });
     setChartData(newChartData);
   };
-
-  function binomialCDF(k, n, p) {
-    let sum = 0;
-    for (let i = 0; i <= k; i++) {
-      sum += binomialPMF(i, n, p);
-    }
-    return sum;
-  }
 
   function binomialPMF(k, n, p) {
     const comb = factorial(n) / (factorial(k) * factorial(n - k));
