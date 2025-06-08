@@ -14,7 +14,6 @@ function InkCurveCalculator() {
   const [cardCounts, setCardCounts] = useState(Array(11).fill(0));
   const [manualNonInkables, setManualNonInkables] = useState('');
   const [probabilityTarget, setProbabilityTarget] = useState(85);
-  const [deckString, setDeckString] = useState('');
   const [result, setResult] = useState(null);
   const [chartData, setChartData] = useState([]);
 
@@ -26,20 +25,6 @@ function InkCurveCalculator() {
 
   const getTotalCardCount = () => {
     return cardCounts.reduce((sum, count) => sum + count, 0);
-  };
-
-  const parseDreambornDeck = () => {
-    try {
-      const data = JSON.parse(deckString);
-      const counts = Array(11).fill(0);
-      data.cards.forEach(card => {
-        const cost = card.cost || 0;
-        if (cost >= 0 && cost <= 10) counts[cost] += card.count || 1;
-      });
-      setCardCounts(counts);
-    } catch (e) {
-      alert("Invalid Dreamborn deck string.");
-    }
   };
 
   const calculateCurve = () => {
@@ -54,18 +39,31 @@ function InkCurveCalculator() {
     const targetTurn = Math.round(averageCost);
     const cardsSeen = 7 + targetTurn;
 
-    let nonInkables = manualNonInkables ? parseInt(manualNonInkables, 10) : 0;
+    let nonInkables;
+    if (manualNonInkables !== '') {
+      nonInkables = parseInt(manualNonInkables, 10);
+    } else {
+      // Compute max non-inkables to meet the probability target
+      let maxSuccess = 0;
+      for (let possibleNonInkables = 0; possibleNonInkables <= totalCards; possibleNonInkables++) {
+        const possibleInkables = totalCards - possibleNonInkables;
+        const successRate = (1 - binomialCDF(targetTurn - 1, cardsSeen, possibleInkables / totalCards)) * 100;
+        if (successRate >= probabilityTarget) {
+          nonInkables = possibleNonInkables;
+          maxSuccess = successRate;
+        } else {
+          break;
+        }
+      }
+    }
+
     if (nonInkables < 0 || nonInkables > totalCards) {
-      setResult({ error: 'Manual non-inkables value is invalid.' });
+      setResult({ error: 'Calculated non-inkables value is invalid.' });
       return;
     }
 
     const inkablesInDeck = totalCards - nonInkables;
-    let successRate = 0;
-
-    if (totalCards > 0 && inkablesInDeck >= 0) {
-      successRate = (1 - binomialCDF(targetTurn - 1, cardsSeen, inkablesInDeck / totalCards)) * 100;
-    }
+    const successRate = (1 - binomialCDF(targetTurn - 1, cardsSeen, inkablesInDeck / totalCards)) * 100;
 
     const newChartData = Array.from({ length: 10 }, (_, turn) => {
       const seen = 7 + turn;
@@ -115,18 +113,6 @@ function InkCurveCalculator() {
         Enter cards for the cost you expect to play them at. This includes effects like shift or cost reduction.
         The goal is to find the maximum non-inkables you can safely play to hit curve.
       </p>
-
-      <div className="mb-4">
-        <label className="block font-semibold">Dreamborn Deck String</label>
-        <textarea
-          className="w-full border p-2 rounded mb-2"
-          rows="4"
-          placeholder="Paste Dreamborn deck JSON string here"
-          value={deckString}
-          onChange={(e) => setDeckString(e.target.value)}
-        ></textarea>
-        <button onClick={parseDreambornDeck} className="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">Import Deck</button>
-      </div>
 
       <div className="mb-4">
         <label className="block font-semibold">Manual Non-Inkables Override</label>
