@@ -63,7 +63,9 @@ function InkCurveCalculator() {
     const targetTurn = Math.round(averageCost);
     const cardsSeen = 7 + targetTurn;
 
-    let nonInkables;
+    let nonInkables = 0;
+    let bestValid = 0;
+
     if (manualNonInkables !== '') {
       nonInkables = parseInt(manualNonInkables, 10);
     } else {
@@ -74,11 +76,10 @@ function InkCurveCalculator() {
           probSuccess += binomialPMF(k, cardsSeen, inkables / totalCards);
         }
         if (probSuccess * 100 >= probabilityTarget) {
-          nonInkables = possibleNonInkables;
-        } else {
-          break;
+          bestValid = possibleNonInkables;
         }
       }
+      nonInkables = bestValid;
     }
 
     if (nonInkables < 0 || nonInkables > totalCards) {
