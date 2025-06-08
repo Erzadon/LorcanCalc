@@ -13,7 +13,7 @@ import {
 function InkCurveCalculator() {
   const [cardCounts, setCardCounts] = useState(Array(11).fill(0));
   const [manualNonInkables, setManualNonInkables] = useState('');
-  const [probabilityTarget, setProbabilityTarget] = useState(85);
+  const [probabilityTarget, setProbabilityTarget] = useState(90);
   const [result, setResult] = useState(null);
   const [chartData, setChartData] = useState([]);
 
@@ -62,7 +62,7 @@ function InkCurveCalculator() {
         const inkables = totalCards - possibleNonInkables;
         let probSuccess = 0;
         for (let k = targetInk; k <= cardsSeen; k++) {
-          probSuccess += binomialPMF(k, cardsSeen, inkables / totalCards);
+          probSuccess += hypergeometricPMF(k, totalCards, inkables, cardsSeen);
         }
         if (probSuccess * 100 >= probabilityTarget) {
           bestValid = possibleNonInkables;
@@ -79,7 +79,7 @@ function InkCurveCalculator() {
     const inkablesInDeck = totalCards - nonInkables;
     let successProb = 0;
     for (let k = targetInk; k <= cardsSeen; k++) {
-      successProb += binomialPMF(k, cardsSeen, inkablesInDeck / totalCards);
+      successProb += hypergeometricPMF(k, totalCards, inkablesInDeck, cardsSeen);
     }
     const successRate = successProb * 100;
 
@@ -88,7 +88,7 @@ function InkCurveCalculator() {
       const requiredInk = turn + 1;
       let turnProb = 0;
       for (let k = requiredInk; k <= seen; k++) {
-        turnProb += binomialPMF(k, seen, inkablesInDeck / totalCards);
+        turnProb += hypergeometricPMF(k, totalCards, inkablesInDeck, seen);
       }
       return { turn: turn + 1, 'Odds of Playing on Curve': parseFloat((turnProb * 100).toFixed(1)) };
     });
@@ -105,15 +105,18 @@ function InkCurveCalculator() {
     setChartData(newChartData);
   };
 
-  function binomialPMF(k, n, p) {
-    const comb = factorial(n) / (factorial(k) * factorial(n - k));
-    return comb * Math.pow(p, k) * Math.pow(1 - p, n - k);
+  function hypergeometricPMF(k, N, K, n) {
+    return (combinations(K, k) * combinations(N - K, n - k)) / combinations(N, n);
   }
 
-  function factorial(n) {
-    if (n === 0 || n === 1) return 1;
+  function combinations(n, k) {
+    if (k < 0 || k > n) return 0;
+    if (k === 0 || k === n) return 1;
+    k = Math.min(k, n - k);
     let result = 1;
-    for (let i = 2; i <= n; i++) result *= i;
+    for (let i = 0; i < k; i++) {
+      result = (result * (n - i)) / (i + 1);
+    }
     return result;
   }
 
