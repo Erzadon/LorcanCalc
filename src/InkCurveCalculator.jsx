@@ -42,8 +42,8 @@ function InkCurveCalculator() {
 
     const weightedSum = cardCounts.reduce((sum, count, cost) => sum + count * cost, 0);
     const averageCost = weightedSum / totalCards;
-    const targetTurn = Math.round(averageCost);
-    const cardsSeen = 7 + targetTurn;
+    const targetInk = Math.round(averageCost);
+    const cardsSeen = 7 + targetInk;
 
     let nonInkables = 0;
     let bestValid = 0;
@@ -54,7 +54,7 @@ function InkCurveCalculator() {
       for (let possibleNonInkables = 0; possibleNonInkables <= totalCards; possibleNonInkables++) {
         const inkables = totalCards - possibleNonInkables;
         let probSuccess = 0;
-        for (let k = targetTurn; k <= cardsSeen; k++) {
+        for (let k = targetInk; k <= cardsSeen; k++) {
           probSuccess += binomialPMF(k, cardsSeen, inkables / totalCards);
         }
         if (probSuccess * 100 >= probabilityTarget) {
@@ -71,7 +71,7 @@ function InkCurveCalculator() {
 
     const inkablesInDeck = totalCards - nonInkables;
     let successProb = 0;
-    for (let k = targetTurn; k <= cardsSeen; k++) {
+    for (let k = targetInk; k <= cardsSeen; k++) {
       successProb += binomialPMF(k, cardsSeen, inkablesInDeck / totalCards);
     }
     const successRate = successProb * 100;
@@ -88,7 +88,7 @@ function InkCurveCalculator() {
 
     setResult({
       averageCost: averageCost.toFixed(2),
-      targetTurn,
+      targetTurn: targetInk,
       cardsSeen,
       inkablesInDeck,
       nonInkablesInDeck: nonInkables,
