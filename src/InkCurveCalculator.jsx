@@ -40,9 +40,16 @@ function InkCurveCalculator() {
       return;
     }
 
+    let targetInk = 0;
+    for (let i = cardCounts.length - 1; i >= 0; i--) {
+      if (cardCounts[i] > 0) {
+        targetInk = i;
+        break;
+      }
+    }
+
     const weightedSum = cardCounts.reduce((sum, count, cost) => sum + count * cost, 0);
     const averageCost = weightedSum / totalCards;
-    const targetInk = Math.round(averageCost);
     const cardsSeen = 7 + targetInk;
 
     let nonInkables = 0;
