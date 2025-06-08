@@ -1,4 +1,20 @@
-import React, { useState } from 'react';
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4675088988721722" crossorigin="anonymous"></script>
+    <script>
+      // Google Cookie Consent
+      window.dataLayer = window.dataLayer || [];
+      function gtag() { dataLayer.push(arguments); }
+      gtag('consent', 'default', {
+        'ad_storage': 'denied',
+        'analytics_storage': 'denied'
+      });
+    </script>
+  </head>
+</html>
+
+import React, { useState, useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -16,6 +32,14 @@ function InkCurveCalculator() {
   const [probabilityTarget, setProbabilityTarget] = useState(85);
   const [result, setResult] = useState(null);
   const [chartData, setChartData] = useState([]);
+
+  useEffect(() => {
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch (e) {
+      console.error('AdSense error:', e);
+    }
+  }, []);
 
   const handleCardCountChange = (cost, value) => {
     const newCounts = [...cardCounts];
@@ -43,7 +67,6 @@ function InkCurveCalculator() {
     if (manualNonInkables !== '') {
       nonInkables = parseInt(manualNonInkables, 10);
     } else {
-      // Compute max non-inkables to meet the probability target
       let maxSuccess = 0;
       for (let possibleNonInkables = 0; possibleNonInkables <= totalCards; possibleNonInkables++) {
         const possibleInkables = totalCards - possibleNonInkables;
@@ -198,6 +221,20 @@ function InkCurveCalculator() {
           </ResponsiveContainer>
         </div>
       )}
+
+      <div className="mt-8">
+        <ins className="adsbygoogle"
+          style={{ display: 'block' }}
+          data-ad-client="ca-pub-4675088988721722"
+          data-ad-slot="1234567890"
+          data-ad-format="auto"
+          data-full-width-responsive="true">
+        </ins>
+      </div>
+
+      <footer className="text-xs text-gray-500 mt-8 text-center">
+        This site uses cookies to personalize ads and to analyze traffic. Information about your use of this site is shared with Google.
+      </footer>
     </div>
   );
 }
