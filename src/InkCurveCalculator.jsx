@@ -1,148 +1,219 @@
-import { useState } from "react";
+import React, { useState } from 'react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
-export default function InkCurveCalculator() {
-  const [cardCounts, setCardCounts] = useState(Array(11).fill(0)); // Cost 0 to 10
-  const [deckSize, setDeckSize] = useState(60);
-  const [targetAccuracy, setTargetAccuracy] = useState(75); // percent
+function InkCurveCalculator() {
+  const [cardCounts, setCardCounts] = useState(Array(11).fill(0));
+  const [manualNonInkables, setManualNonInkables] = useState('');
+  const [probabilityTarget, setProbabilityTarget] = useState(85);
+  const [deckString, setDeckString] = useState('');
   const [result, setResult] = useState(null);
+  const [chartData, setChartData] = useState([]);
 
   const handleCardCountChange = (cost, value) => {
     const newCounts = [...cardCounts];
-    newCounts[cost] = Number(value);
+    newCounts[cost] = parseInt(value, 10) || 0;
     setCardCounts(newCounts);
   };
 
-  function calculateCurve() {
+  const getTotalCardCount = () => {
+    return cardCounts.reduce((sum, count) => sum + count, 0);
+  };
+
+  const parseDreambornDeck = () => {
+    try {
+      const data = JSON.parse(deckString);
+      const counts = Array(11).fill(0);
+      data.cards.forEach(card => {
+        const cost = card.cost || 0;
+        if (cost >= 0 && cost <= 10) counts[cost] += card.count || 1;
+      });
+      setCardCounts(counts);
+    } catch (e) {
+      alert("Invalid Dreamborn deck string.");
+    }
+  };
+
+  const calculateCurve = () => {
     const totalCards = cardCounts.reduce((sum, count) => sum + count, 0);
-    if (totalCards !== deckSize) {
-      setResult({ error: `Deck must have exactly ${deckSize} cards. Currently has ${totalCards}.` });
+    if (totalCards === 0) {
+      setResult({ error: 'Please enter at least one card count.' });
       return;
     }
 
-    const totalCost = cardCounts.reduce((sum, count, cost) => sum + cost * count, 0);
-    const averageCost = totalCost / deckSize;
+    const weightedSum = cardCounts.reduce((sum, count, cost) => sum + count * cost, 0);
+    const averageCost = weightedSum / totalCards;
+    const targetTurn = Math.round(averageCost);
+    const cardsSeen = 7 + targetTurn;
 
-    const targetTurn = Math.ceil(averageCost);
-    const openingHand = 7;
-    const drawsByTurn = targetTurn - 1;
-    const cardsSeen = openingHand + drawsByTurn;
-
-    let inkablesNeeded = 0;
-    let probability = 0;
-    for (let inkables = 1; inkables <= deckSize; inkables++) {
-      probability = 1 - cumulativeHypergeometric(targetTurn - 1, deckSize, inkables, cardsSeen);
-      if (probability >= targetAccuracy / 100) {
-        inkablesNeeded = inkables;
-        break;
-      }
+    let nonInkables = manualNonInkables ? parseInt(manualNonInkables, 10) : 0;
+    if (nonInkables < 0 || nonInkables > totalCards) {
+      setResult({ error: 'Manual non-inkables value is invalid.' });
+      return;
     }
 
-    const maxNonInkables = deckSize - inkablesNeeded;
+    const inkablesInDeck = totalCards - nonInkables;
+    let successRate = 0;
+
+    if (totalCards > 0 && inkablesInDeck >= 0) {
+      successRate = (1 - binomialCDF(targetTurn - 1, cardsSeen, inkablesInDeck / totalCards)) * 100;
+    }
+
+    const newChartData = Array.from({ length: 10 }, (_, turn) => {
+      const seen = 7 + turn;
+      const requiredInk = turn + 1;
+      const odds = (1 - binomialCDF(requiredInk - 1, seen, inkablesInDeck / totalCards)) * 100;
+      return { turn: turn + 1, 'Odds of Playing on Curve': parseFloat(odds.toFixed(1)) };
+    });
 
     setResult({
       averageCost: averageCost.toFixed(2),
       targetTurn,
       cardsSeen,
-      inkablesNeeded,
-      maxNonInkables,
-      probability: (probability * 100).toFixed(1),
+      inkablesInDeck,
+      nonInkablesInDeck: nonInkables,
+      probability: successRate.toFixed(1),
+      totalCards
     });
-  }
+    setChartData(newChartData);
+  };
 
-  function cumulativeHypergeometric(k, N, K, n) {
+  function binomialCDF(k, n, p) {
     let sum = 0;
     for (let i = 0; i <= k; i++) {
-      sum += hypergeometricPMF(i, N, K, n);
+      sum += binomialPMF(i, n, p);
     }
     return sum;
   }
 
-  function hypergeometricPMF(k, N, K, n) {
-    return (
-      (combination(K, k) * combination(N - K, n - k)) / combination(N, n)
-    );
+  function binomialPMF(k, n, p) {
+    const comb = factorial(n) / (factorial(k) * factorial(n - k));
+    return comb * Math.pow(p, k) * Math.pow(1 - p, n - k);
   }
 
-  function combination(n, k) {
-    if (k > n || k < 0) return 0;
+  function factorial(n) {
+    if (n === 0 || n === 1) return 1;
     let result = 1;
-    for (let i = 1; i <= k; i++) {
-      result *= (n - i + 1) / i;
+    for (let i = 2; i <= n; i++) {
+      result *= i;
     }
     return result;
   }
 
   return (
-    <div className="p-4 max-w-xl mx-auto space-y-6 bg-white shadow-lg rounded-2xl">
-      <h1 className="text-2xl font-bold text-center">Lorcana Ink Curve Calculator</h1>
+    <div className="p-4 max-w-3xl mx-auto">
+      <h1 className="text-2xl font-bold mb-2">Perfect Ratio</h1>
+      <p className="mb-4 text-sm text-gray-700">
+        Enter cards for the cost you expect to play them at. This includes effects like shift or cost reduction.
+        The goal is to find the maximum non-inkables you can safely play to hit curve.
+      </p>
 
-      <div>
-        <label className="block font-semibold">Deck Size</label>
+      <div className="mb-4">
+        <label className="block font-semibold">Dreamborn Deck String</label>
+        <textarea
+          className="w-full border p-2 rounded mb-2"
+          rows="4"
+          placeholder="Paste Dreamborn deck JSON string here"
+          value={deckString}
+          onChange={(e) => setDeckString(e.target.value)}
+        ></textarea>
+        <button onClick={parseDreambornDeck} className="bg-green-600 text-white px-4 py-1 rounded hover:bg-green-700">Import Deck</button>
+      </div>
+
+      <div className="mb-4">
+        <label className="block font-semibold">Manual Non-Inkables Override</label>
         <input
           type="number"
-          value={deckSize}
-          onChange={(e) => setDeckSize(Number(e.target.value))}
+          value={manualNonInkables}
+          onChange={(e) => setManualNonInkables(e.target.value)}
           className="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          min={40}
-          max={80}
+          placeholder="Enter Non-Inkable Count (optional)"
         />
       </div>
 
-      <div className="space-y-2">
-        <p className="font-semibold">
-          Enter Card Counts by Cost (0–10):<br />
-          <span className="text-sm font-normal text-gray-600">(Enter the cost you actually play the card for — factoring in songs, shift, or reductions)</span>
-        </p>
-        {cardCounts.map((count, cost) => (
-          <div key={cost} className="flex items-center space-x-2">
-            <label className="w-12">{cost}:</label>
-            <input
-              type="number"
-              value={count}
-              min={0}
-              onChange={(e) => handleCardCountChange(cost, e.target.value)}
-              className="flex-1 border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <label className="block font-semibold">Target Accuracy (%)</label>
+      <div className="mb-4">
+        <label className="block font-semibold">Target Probability %</label>
         <input
           type="number"
-          value={targetAccuracy}
-          onChange={(e) => setTargetAccuracy(Number(e.target.value))}
+          value={probabilityTarget}
+          onChange={(e) => setProbabilityTarget(parseInt(e.target.value, 10))}
           className="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          min={50}
-          max={99}
+          min="1"
+          max="99"
         />
       </div>
 
-      <button
-        onClick={calculateCurve}
-        className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
-      >
-        Calculate
-      </button>
+      <div className="mb-4">
+        <label className="block font-semibold">Enter Card Counts (Cost You Expect to Play Them)</label>
+        <div className="grid grid-cols-2 gap-2">
+          {cardCounts.map((count, cost) => (
+            <div key={cost}>
+              <label className="text-sm">Cost {cost}</label>
+              <input
+                type="number"
+                value={count}
+                onChange={(e) => handleCardCountChange(cost, e.target.value)}
+                className="w-full border p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="text-right text-sm mt-2 text-gray-600">
+          Total Cards: {getTotalCardCount()}
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <button
+          onClick={calculateCurve}
+          className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Calculate
+        </button>
+      </div>
 
       {result && (
-        <div className="border-t pt-4 space-y-2">
+        <div className="p-4 bg-gray-100 rounded mb-4">
           {result.error ? (
-            <p className="text-red-600 font-semibold">{result.error}</p>
+            <p className="text-red-600">{result.error}</p>
           ) : (
             <>
-              <p><strong>Average Card Cost:</strong> {result.averageCost}</p>
+              <p><strong>Weighted Average Cost:</strong> {result.averageCost}</p>
               <p><strong>Target Ink:</strong> {result.targetTurn}</p>
               <p><strong>Cards Seen by Turn {result.targetTurn}:</strong> {result.cardsSeen}</p>
-              <p><strong>Inkables Needed for {targetAccuracy}% success:</strong> {result.inkablesNeeded}</p>
-              <p><strong>Recommended Max Non-Inkables:</strong> {result.maxNonInkables}</p>
+              <p><strong>Inkables in Deck:</strong> {result.inkablesInDeck}</p>
+              <p><strong>Max Non-Inkables:</strong> {result.nonInkablesInDeck}</p>
               <p><strong>Estimated Success Rate:</strong> {result.probability}%</p>
+              <p><strong>Total Cards:</strong> {result.totalCards}</p>
             </>
           )}
+        </div>
+      )}
+
+      {chartData.length > 0 && (
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="turn" label={{ value: 'Turn', position: 'insideBottomRight', offset: -5 }} />
+              <YAxis domain={[0, 100]} label={{ value: 'Chance (%)', angle: -90, position: 'insideLeft' }} />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="Odds of Playing on Curve" stroke="#8884d8" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       )}
     </div>
   );
 }
 
+export default InkCurveCalculator;
