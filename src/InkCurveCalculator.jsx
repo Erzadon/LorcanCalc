@@ -1,19 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4675088988721722" crossorigin="anonymous"></script>
-    <script>
-      // Google Cookie Consent
-      window.dataLayer = window.dataLayer || [];
-      function gtag() { dataLayer.push(arguments); }
-      gtag('consent', 'default', {
-        'ad_storage': 'denied',
-        'analytics_storage': 'denied'
-      });
-    </script>
-  </head>
-</html>
-
 import React, { useState, useEffect } from 'react';
 import {
   LineChart,
@@ -47,9 +31,7 @@ function InkCurveCalculator() {
     setCardCounts(newCounts);
   };
 
-  const getTotalCardCount = () => {
-    return cardCounts.reduce((sum, count) => sum + count, 0);
-  };
+  const getTotalCardCount = () => cardCounts.reduce((sum, count) => sum + count, 0);
 
   const calculateCurve = () => {
     const totalCards = getTotalCardCount();
@@ -124,9 +106,7 @@ function InkCurveCalculator() {
   function factorial(n) {
     if (n === 0 || n === 1) return 1;
     let result = 1;
-    for (let i = 2; i <= n; i++) {
-      result *= i;
-    }
+    for (let i = 2; i <= n; i++) result *= i;
     return result;
   }
 
